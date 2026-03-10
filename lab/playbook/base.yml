@@ -1,0 +1,31 @@
+- name: base
+  hosts: harpocrates
+  become: yes # Run as sudo
+  tasks:
+    - name: Update all packages
+      apt:
+        update_cache: yes
+        upgrade: dist
+    - name: Install essential packages
+      apt:
+        name:
+          - ufw
+          - fail2ban
+          - unattended-upgrades
+        state: present
+    - name: Enable automatic security updates
+      command: dpkg-reconfigure -f noninteractive unattended-upgrades
+    - name: Configure firewall (UFW) - Allow SSH
+      ufw:
+        rule: allow
+        name: OpenSSH
+      notify: Enable UFW
+    - name: Enable Fail2Ban for brute-force protection
+      service:
+        name: fail2ban
+        state: started
+        enabled: yes
+  handlers:
+    - name: Enable UFW
+      ufw:
+        state: enabled

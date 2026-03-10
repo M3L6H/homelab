@@ -1,5 +1,7 @@
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
+
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
 **Table of Contents**
 
 - [homelab](#homelab)
@@ -49,21 +51,6 @@ sudo reboot
 ```
 
 ssh back into the machine and install some basic tools & do some security hardening:
-
-```sh
-# Install tools
-sudo apt install -y curl fail2ban git wget
-
-# Enable firewall (allow ssh)
-sudo ufw allow OpenSSH
-sudo ufw --force enable
-
-# Disable password-based ssh
-sudo vi /etc/ssh/sshd_config
-# set: PasswordAuthentication no
-# :wq
-sudo systemctl restart ssh
-```
 
 ## ssh-keys
 
