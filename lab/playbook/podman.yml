@@ -1,0 +1,39 @@
+- name: podman
+  hosts: harpocrates
+  become: yes
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+    - name: Install Podman and essential companion tools
+      apt:
+        name:
+          - podman # Core engine
+          - buildah # For building images
+          - skopeo # For image inspection/copy
+          - fuse-overlayfs # Better storage driver for rootless
+          - passt
+        state: present
+    - name: Ensure subuid/subgid ranges exist for rootless (your user)
+      command: usermod --add-subuids 100000-165535 --add-subgids 100000-165535 {{ ansible_user }}
+      changed_when: false
+    - name: Enable & start Podman user socket (for podman compose / API compatibility)
+      become: no
+      systemd:
+        name: podman.socket
+        state: started
+        enabled: yes
+        scope: user
+    - name: Ensure podman user service is enabled
+      become: no
+      systemd:
+        name: podman.service
+        enabled: yes
+        scope: user
+    - name: Verify Podman version
+      command: podman --version
+      register: podman_version
+      changed_when: false
+    - name: Debug Podman version
+      debug:
+        msg: "{{ podman_version.stdout }}"
