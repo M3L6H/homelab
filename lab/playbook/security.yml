@@ -1,0 +1,156 @@
+- name: security
+  hosts: harpocrates
+  become: true
+  vars:
+    audit_rules_file: /etc/audit/rules.d/hardening.rules
+  tasks:
+    # ------------------------------------------------------------------
+    # AppArmor
+    # ------------------------------------------------------------------
+    - name: Ensure AppArmor packages are installed
+      ansible.builtin.apt:
+        name:
+          - apparmor
+          - apparmor-utils
+        state: present
+        update_cache: true
+    - name: Ensure AppArmor service is enabled and started
+      ansible.builtin.service:
+        name: apparmor
+        state: started
+        enabled: true
+    - name: Check AppArmor status
+      ansible.builtin.command: aa-status
+      register: apparmor_status
+      changed_when: false
+      failed_when: false
+    - name: Show AppArmor status summary
+      ansible.builtin.debug:
+        msg: "{{ apparmor_status.stdout_lines | default(['aa-status not available']) }}"
+    # ------------------------------------------------------------------
+    # Kernel hardening (sysctl)
+    # ------------------------------------------------------------------
+    - name: Apply kernel hardening sysctl settings
+      ansible.posix.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        sysctl_file: /etc/sysctl.d/99-hardening.conf
+        reload: true
+      loop:
+        # Network / IP stack
+        # Use reverse path filtering to try to catch IP spoofing by checking route tables
+        - {name: net.ipv4.conf.all.rp_filter, value: "1"}
+        - {name: net.ipv4.conf.default.rp_filter, value: "1"}
+        # Ignore ICMP broadcasts & redirects to avoid DoS or interceptoin attacks
+        - {name: net.ipv4.icmp_echo_ignore_broadcasts, value: "1"}
+        - {name: net.ipv4.conf.all.accept_source_route, value: "0"}
+        - {name: net.ipv4.conf.default.accept_source_route, value: "0"}
+        - {name: net.ipv4.conf.all.accept_redirects, value: "0"}
+        - {name: net.ipv4.conf.default.accept_redirects, value: "0"}
+        - {name: net.ipv4.conf.all.send_redirects, value: "0"}
+        - {name: net.ipv4.conf.default.send_redirects, value: "0"}
+        # Enable syn cookies to guard against SYN floods
+        - {name: net.ipv4.tcp_syncookies, value: "1"}
+        # Enable TCP timestamps to allow advanced TCP to work even with syn cookies
+        - {name: net.ipv4.tcp_timestamps, value: "1"}
+        # Increase SYN backlog to give more room before SYN cookies are triggered
+        - {name: net.ipv4.tcp_max_syn_backlog, value: "4096"}
+        - {name: net.core.somaxconn, value: "4096"}
+        # Log martians to detect suspicious traffic
+        - {name: net.ipv4.conf.all.log_martians, value: "1"}
+        - {name: net.ipv4.conf.default.log_martians, value: "1"}
+        # IPv6 (safe defaults – disable if you don’t use IPv6)
+        - {name: net.ipv6.conf.all.disable_ipv6, value: "1"}
+        - {name: net.ipv6.conf.default.disable_ipv6, value: "1"}
+        - {name: net.ipv6.conf.lo.disable_ipv6, value: "1"}
+        # Kernel / memory / process
+        # Hide kernel pointers from everyone (2)
+        - {name: kernel.kptr_restrict, value: "2"}
+        # Restrict the kernel log to root
+        - {name: kernel.dmesg_restrict, value: "1"}
+        # Restrict ptrace
+        - {name: kernel.yama.ptrace_scope, value: "1"}
+        # Disable BPF for unprivileged users
+        - {name: kernel.unprivileged_bpf_disabled, value: "1"}
+        # Harden the JIT compiler completely to prevent side-channel attacks
+        - {name: net.core.bpf_jit_harden, value: "2"}
+        # Protect links to prevent symlink races and TOCTOU attacks
+        - {name: fs.protected_hardlinks, value: "1"}
+        - {name: fs.protected_symlinks, value: "1"}
+        # Disable SUID core dumps to prevent leaking sensitive memory
+        - {name: fs.suid_dumpable, value: "0"}
+        - {name: kernel.core_pattern, value: "|/bin/false"} # disable core dumps
+        - {name: kernel.sysrq, value: "0"}
+    # ------------------------------------------------------------------
+    # auditd
+    # ------------------------------------------------------------------
+    - name: Install auditd and plugins
+      ansible.builtin.apt:
+        name:
+          - auditd
+          - audispd-plugins
+        state: present
+    - name: Ensure auditd is enabled and started
+      ansible.builtin.service:
+        name: auditd
+        state: started
+        enabled: true
+    - name: Deploy basic hardening audit rules
+      ansible.builtin.copy:
+        dest: "{{ audit_rules_file }}"
+        mode: "0640"
+        content: |
+          # Delete all previous rules
+          -D
+
+          # Buffer settings
+          -b 8192
+          -f 1
+
+          # Monitor identity and authentication
+          -w /etc/passwd -p wa -k identity
+          -w /etc/group  -p wa -k identity
+          -w /etc/shadow -p wa -k identity
+          -w /etc/gshadow -p wa -k identity
+          -w /etc/sudoers -p wa -k identity
+          -w /etc/sudoers.d/ -p wa -k identity
+
+          # Monitor login/logout
+          -w /var/log/faillog -p wa -k logins
+          -w /var/log/lastlog -p wa -k logins
+          -w /var/log/wtmp -p wa -k logins
+          -w /var/run/utmp -p wa -k logins
+
+          # Monitor privilege escalation
+          -w /bin/su -p x -k priv_esc
+          -w /usr/bin/sudo -p x -k priv_esc
+          -w /etc/sudoers -p wa -k priv_esc
+
+          # Monitor important configuration directories
+          -w /etc/ssh/sshd_config -p wa -k sshd
+          -w /etc/sysctl.conf -p wa -k sysctl
+          -w /etc/sysctl.d/ -p wa -k sysctl
+          -w /etc/audit/ -p wa -k audit
+          -w /etc/apparmor/ -p wa -k apparmor
+          -w /etc/apparmor.d/ -p wa -k apparmor
+
+          # Monitor kernel module loading
+          -w /sbin/insmod -p x -k modules
+          -w /sbin/rmmod -p x -k modules
+          -w /sbin/modprobe -p x -k modules
+          -a always,exit -F arch=b64 -S init_module,finit_module,delete_module -k modules
+
+          # Make the configuration immutable (must be last)
+          -e 2
+        backup: true
+      notify: Restart auditd
+    - name: Ensure auditd configuration is loaded
+      ansible.builtin.command: augenrules --load
+      changed_when: false
+      failed_when: false
+  handlers:
+    - name: Restart auditd
+      ansible.builtin.service:
+        name: auditd
+        state: restarted
