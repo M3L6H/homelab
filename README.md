@@ -52,10 +52,6 @@ sudo apt update && sudo apt upgrade -y
 sudo reboot
 ```
 
-ssh back into the machine and install some basic tools & do some security hardening:
-
-`TODO`
-
 ### Configure networking
 
 Check what network interfaces are available with this command:
@@ -161,6 +157,102 @@ mmcblk0 179:0 0 119.4G 0 disk
 └─mmcblk0p2 179:2 0 118.9G 0 part /
 nvme0n1 259:0 0 953.9G 0 disk
 ```
+
+Download the desired ubuntu image:
+
+```sh
+# e.g.
+wget https://cdimage.ubuntu.com/ubuntu/releases/26.04/release/ubuntu-26.04-preinstalled-desktop-arm64+raspi.img.xz
+
+# verify checksum
+echo '10604098a0c4eeb7359e58e12b01badbce8c74b0d53b414e633ba0b047b512cd ubuntu-26.04-preinstalled-desktop-arm64+raspi.img.xz' | sha256sum --check
+```
+
+Write the image to the NVMe identified above:
+
+```sh
+xzcat ubuntu-26.04-preinstalled-desktop-arm64+raspi.img.xz | sudo dd of=/dev/nvme0n1 bs=16M status=progress conv=fsync
+sync
+```
+
+Mount the boot partition:
+
+```sh
+sudo mkdir -p /mnt/nvme-boot
+sudo mount /dev/nvme0n1p1 /mnt/nvme-boot # usually p1 is the boot/firmware partition
+
+ls /mnt/nvme-boot # you should see config.txt, cmdline.txt, user-data, network-config, etc.
+```
+
+Set up SSH
+
+```sh
+sudo vim /mnt/nvme-boot/user-data
+```
+
+Set the following contents:
+
+```yml
+#cloud-config
+hostname: raspberry-pi
+manage_etc_hosts: true
+users:
+- name: m3l6h
+  groups: users,adm,dialout,audio,netdev,video,plugdev,cdrom,games,input,gpio,spi,i2c,render,sudo
+  shell: /bin/bash
+  lock_passwd: false
+  passwd: "$y$jB5$rR5Nrh2Jbx0JttqGHZ1Be/$amVCFDudI7Sf2md7rGZrZ7RAhoTcIlUVoNKHCYFwEH0"
+  ssh_authorized_keys:
+    - sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIKVVK1doax73LD26k/8ulUA9lcrpvD8WW+l7eACXqESlAAAAD3NzaDpoYXJwb2NyYXRlcw== Primary@YubiKey 2026-03
+    - sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIMUbMWsvw5fQ1lT4WvPWTMQGRBugogKpAxbZJJ/vVbF4AAAAD3NzaDpoYXJwb2NyYXRlcw== Backup@YubiKey 2026-03
+  sudo: ALL=(ALL) NOPASSWD:ALL
+enable_ssh: true
+ssh_pwauth: false
+```
+
+Next edit `/mnt/nvme-boot/network-config` and set the following contents:
+
+```yml
+network:
+  version: 2
+
+  ethernets:
+    eth0:
+      dhcp4: false
+      addresses:
+        - 192.168.1.98/24
+      routes:
+        - to: default
+          via: 192.168.1.1
+      nameservers:
+        addresses: [1.1.1.1, 8.8.8.8]
+      optional: false
+```
+
+Add the following at the bottom of `/mnt/nvme-boot/config.txt`:
+
+```toml
+[all]
+# Force PCIE Gen 3
+dtparam=pciex1
+dtparam=pciex1_gen=3
+```
+
+Unmount:
+
+```sh
+sudo umount /mnt/nvme-boot
+sync
+```
+
+Poweroff:
+
+```sh
+sudo poweroff
+```
+
+Remove the microSD & power on again.
+Ensure SSH works and Pi is correctly booting from the NVMe.
 
 ### troubleshooting
 
