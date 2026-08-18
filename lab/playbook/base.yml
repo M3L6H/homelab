@@ -5,6 +5,9 @@
     main_user: m3l6h
     ssh_port: 7272
   tasks:
+    # ==================================================================
+    # update & install packages
+    # ==================================================================
     - name: Update all packages
       ansible.builtin.apt:
         update_cache: true
@@ -21,6 +24,9 @@
           - ufw
           - unattended-upgrades
         state: present
+    # ==================================================================
+    # set up automatic security upgrades
+    # ==================================================================
     - name: Enable automatic security updates
       command: dpkg-reconfigure -f noninteractive unattended-upgrades
       changed_when: false
@@ -36,6 +42,9 @@
           Unattended-Upgrade::Automatic-Reboot "false";
           Unattended-Upgrade::Remove-Unused-Dependencies "true";
         mode: "0644"
+    # ==================================================================
+    # harden ssh
+    # ==================================================================
     - name: Configure SSH - change port and harden
       ansible.builtin.lineinfile:
         path: /etc/ssh/sshd_config
@@ -61,6 +70,9 @@
         line: "AllowUsers {{ main_user }}"
         state: present
       notify: Restart ssh
+    # ==================================================================
+    # set up firewall
+    # ==================================================================
     - name: Configure firewall (UFW) - deny incoming by default
       community.general.ufw:
         default: deny
@@ -78,6 +90,9 @@
     - name: Enable UFW
       community.general.ufw:
         state: enabled
+    # ==================================================================
+    # set up fail2ban
+    # ==================================================================
     - name: Configure Fail2Ban for the SSH port
       ansible.builtin.copy:
         dest: /etc/fail2ban/jail.d/sshd.local
@@ -97,6 +112,9 @@
         name: fail2ban
         state: started
         enabled: true
+    # ==================================================================
+    # disable unused network services
+    # ==================================================================
     - name: Disable unused network services if present
       ansible.builtin.service:
         name: "{{ item }}"
@@ -107,6 +125,9 @@
         - cups
         - avahi-daemon
       failed_when: false # ignore if the service does not exist
+    # ==================================================================
+    # update umask
+    # ==================================================================
     - name: Set a reasonable umask in /etc/login.defs
       ansible.builtin.lineinfile:
         path: /etc/login.defs

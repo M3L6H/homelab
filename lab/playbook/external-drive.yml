@@ -1,0 +1,156 @@
+- name: external-drive
+  hosts: shinobu
+  become: true
+  vars:
+    drive_uuid: 001F-5737
+    mount_point: /mnt/files
+    filesystem: auto
+    ssh_user: m3l6h
+    backup_user: "{{ inventory_hostname }}"
+    backup_sources:
+      - /etc
+      - "/home/{{ backup_user }}"
+      - /root
+      - /srv
+      - /var
+    backup_destination: "{{ mount_point }}/backups/{{ inventory_hostname }}"
+    backup_schedule: "Sun *-*-* 03:06:00"
+  tasks:
+    # ==================================================================
+    # install packages
+    # ==================================================================
+    - name: Install required packages
+      ansible.builtin.apt:
+        name:
+          - rsync
+          - acl
+        state: present
+        update_cache: true
+    # ==================================================================
+    # set up mount
+    # ==================================================================
+    - name: Create mount point with access for {{ ssh_user }}
+      ansible.builtin.file:
+        path: "{{ mount_point }}"
+        state: directory
+        owner: "{{ ssh_user }}"
+        group: "{{ ssh_user }}"
+        mode: "0700"
+    - name: Mount drive on boot
+      ansible.posix.mount:
+        path: "{{ mount_point }}"
+        src: "UUID={{ drive_uuid }}"
+        fstype: "{{ filesystem }}"
+        opts: "rw,noexec,nosuid,nodev,nofail,noatime"
+        state: mounted
+        boot: true
+    # ==================================================================
+    # set up backup dir
+    # ==================================================================
+    - name: Dedicated backup directory for {{ backup_user }}
+      ansible.builtin.file:
+        path: "{{ mount_point }}/{{ inventory_hostname }}"
+        state: directory
+        owner: "{{ backup_user }}"
+        group: "{{ backup_user }}"
+        mode: "0700"
+    - name: Allow {{ ssh_user }} to read {{ backup_user }} backups
+      ansible.posix.acl:
+        path: "{{ mount_point }}/{{ inventory_hostname }}"
+        entity: "{{ ssh_user }}"
+        etype: user
+        permissions: rx
+        state: present
+    # ==================================================================
+    # backup script
+    # ==================================================================
+    - name: Create backup script
+      ansible.builtin.copy:
+        dest: /usr/local/bin/backup.sh
+        owner: root
+        group: root
+        mode: "0755"
+        content: |-
+          #!/bin/bash
+          set -euo pipefail
+
+          MOUNT="{{ mount_point }}"
+          DEST="${MOUNT}/{{ inventory_hostname }}"
+          LOG="${DEST}/backup-$(date +%Y%m%d-%H%M%S).log"
+          SOURCES=(
+          {% for src in backup_sources %}
+            "{{ src }}"
+          {% endfor %}
+          )
+
+          # Bail out cleanly if the drive is not mounted
+          if ! mountpoint -q "$MOUNT"; then
+            echo "Backup drive not mounted – skipping" >&2
+            exit 0
+          fi
+
+          mkdir -p "$DEST"
+          {
+            echo "=== Backup started $(date) ==="
+            for src in "${SOURCES[@]}"; do
+              if [[ -d "$src" ]]; then
+                echo "→ $src"
+                rsync -aHAX --delete --numeric-ids \
+                  --exclude='.cache' \
+                  --exclude='Cache' \
+                  --exclude='tmp' \
+                  --exclude='*.tmp' \
+                  "$src/" "$DEST/$(basename "$src")/"
+              else
+                echo "Skipping missing source: $src"
+              fi
+            done
+            echo "=== Backup finished $(date) ==="
+          } | tee -a "$LOG"
+
+          # Keep only the last 14 log files
+          ls -1t "$DEST"/backup-*.log 2>/dev/null | tail -n +15 | xargs -r rm -f
+    # ==================================================================
+    # systemd service + timer
+    # ==================================================================
+    - name: Create systemd service for backup
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/backup.service
+        mode: "0644"
+        content: |-
+          [Unit]
+          Description=System backup to external drive
+          After=local-fs.target
+          RequiresMountsFor={{ mount_point }}
+
+          [Service]
+          Type=oneshot
+          User={{ backup_user }}
+          Group={{ backup_user }}
+          ExecStart=/usr/local/bin/backup.sh
+          # Nice + low IO priority so it doesn't interfere with normal use
+          Nice=10
+          IOSchedulingClass=best-effort
+          IOSchedulingPriority=7
+    - name: Create systemd timer for backup
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/backup.timer
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Daily backup timer
+
+          [Timer]
+          OnCalendar={{ backup_schedule }}
+          Persistent=true
+          RandomizedDelaySec=15m
+
+          [Install]
+          WantedBy=timers.target
+    - name: Reload systemd and enable timer
+      ansible.builtin.systemd:
+        daemon_reload: true
+        name: backup.timer
+        enabled: true
+        state: started
+  handlers: []

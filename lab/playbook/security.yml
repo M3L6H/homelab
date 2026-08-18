@@ -4,9 +4,9 @@
   vars:
     audit_rules_file: /etc/audit/rules.d/hardening.rules
   tasks:
-    # ------------------------------------------------------------------
+    # ==================================================================
     # AppArmor
-    # ------------------------------------------------------------------
+    # ==================================================================
     - name: Ensure AppArmor packages are installed
       ansible.builtin.apt:
         name:
@@ -27,9 +27,9 @@
     - name: Show AppArmor status summary
       ansible.builtin.debug:
         msg: "{{ apparmor_status.stdout_lines | default(['aa-status not available']) }}"
-    # ------------------------------------------------------------------
+    # ==================================================================
     # Kernel hardening (sysctl)
-    # ------------------------------------------------------------------
+    # ==================================================================
     - name: Apply kernel hardening sysctl settings
       ansible.posix.sysctl:
         name: "{{ item.name }}"
@@ -82,9 +82,9 @@
         - {name: fs.suid_dumpable, value: "0"}
         - {name: kernel.core_pattern, value: "|/bin/false"} # disable core dumps
         - {name: kernel.sysrq, value: "0"}
-    # ------------------------------------------------------------------
+    # ==================================================================
     # auditd
-    # ------------------------------------------------------------------
+    # ==================================================================
     - name: Install auditd and plugins
       ansible.builtin.apt:
         name:

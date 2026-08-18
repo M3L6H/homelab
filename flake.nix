@@ -27,6 +27,8 @@
               rpi-imager
               yubikey-manager
             ];
+
+            ANSIBLE_DEPRECATION_WARNINGS = "False";
           };
       }
     );

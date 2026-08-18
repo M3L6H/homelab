@@ -29,6 +29,9 @@ ansible-playbook -i lab/inventory.ini lab/playbook/security.yml
 # user
 ansible-playbook -i lab/inventory.ini lab/playbook/user.yml
 
+# external-drive
+ansible-playbook -i lab/inventory.ini lab/playbook/external-drive.yml
+
 # podman
 ansible-playbook -i lab/inventory.ini lab/playbook/podman.yml
 ```
