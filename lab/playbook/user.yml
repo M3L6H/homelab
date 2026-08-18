@@ -1,0 +1,44 @@
+- name: user
+  hosts: shinobu
+  become: true
+  vars:
+    system_username: "{{ inventory_hostname }}"
+  tasks:
+    - name: Create group
+      ansible.builtin.group:
+        name: "{{ system_username }}"
+        system: true
+        state: present
+    - name: Create user
+      ansible.builtin.user:
+        name: "{{ system_username }}"
+        group: "{{ system_username }}"
+        system: true
+        shell: /usr/sbin/nologin
+        password: "!"
+        create_home: true
+        home: "/home/{{ system_username }}"
+        state: present
+    - name: Home directory permissions
+      ansible.builtin.file:
+        path: "/home/{{ system_username }}"
+        owner: "{{ system_username }}"
+        group: "{{ system_username }}"
+        mode: "0700"
+        state: directory
+    - name: Check lingering
+      ansible.builtin.stat:
+        path: "/var/lib/systemd/linger/{{ system_username }}"
+      register: user_lingering
+    - name: Set lingering
+      ansible.builtin.command: "loginctl enable-linger {{ system_username }}"
+      changed_when: not user_lingering.stat.exists
+    - name: Set subuid and subgid configs
+      ansible.builtin.lineinfile:
+        path: "{{ item }}"
+        line: "{{ system_username }}:100000:65536"
+        create: true
+        mode: "0644"
+      loop:
+        - /etc/subuid
+        - /etc/subgid

@@ -1,5 +1,5 @@
 - name: podman
-  hosts: harpocrates
+  hosts: shinobu
   become: yes
   tasks:
     - name: Update apt cache

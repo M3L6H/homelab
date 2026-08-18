@@ -1,5 +1,5 @@
 - name: security
-  hosts: harpocrates
+  hosts: shinobu
   become: true
   vars:
     audit_rules_file: /etc/audit/rules.d/hardening.rules

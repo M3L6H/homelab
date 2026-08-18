@@ -23,6 +23,12 @@ ansible -i lab/inventory.ini harpocrates -m ping
 # base
 ansible-playbook -i lab/inventory.ini lab/playbook/base.yml
 
+# hardening
+ansible-playbook -i lab/inventory.ini lab/playbook/security.yml
+
+# user
+ansible-playbook -i lab/inventory.ini lab/playbook/user.yml
+
 # podman
 ansible-playbook -i lab/inventory.ini lab/playbook/podman.yml
 ```

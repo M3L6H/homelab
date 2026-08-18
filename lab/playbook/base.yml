@@ -1,5 +1,5 @@
 - name: base
-  hosts: harpocrates
+  hosts: shinobu
   become: yes # Run as sudo
   vars:
     main_user: m3l6h
