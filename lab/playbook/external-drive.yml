@@ -4,7 +4,7 @@
   vars:
     drive_uuid: 001F-5737
     mount_point: /mnt/files
-    filesystem: auto
+    filesystem: ext4
     ssh_user: m3l6h
     backup_user: "{{ inventory_hostname }}"
     backup_sources:
