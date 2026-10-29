@@ -1,0 +1,3 @@
+- [ ] reformat external drive
+- [ ] move backed up files back onto external drive
+- [ ] set up vaultwarden
