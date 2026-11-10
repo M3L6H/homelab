@@ -30,7 +30,7 @@ Run rpi-imager with:
 
 ```sh
 # -E is needed because rpi-imager doesn't have access to the display otherwise
-nohup sudo -E rpi-imager >script.log 2>&1 &
+sudo -E rpi-imager >script.log 2>&1
 ```
 
 Follow the instructions in rpi-imager.
