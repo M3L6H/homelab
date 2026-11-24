@@ -3,7 +3,9 @@
 Setup instructions for YubiKey.
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
+
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
 **Table of Contents**
 
 - [initial setup](#initial-setup)
@@ -91,37 +93,7 @@ ykman fido access change-pin
 
 ## register key with luks
 
-For any devices with luks devices that the key should unlock, run the following:
-
-```sh
-# Identify your luks device
-lsblk
-
-# List slots
-sudo systemd-cryptenroll <luks device>
-
-# Enroll yubikey
-sudo systemd-cryptenroll --fido2-device=auto --fido2-with-client-pin=no <luks device>
-
-# If running into issues with multiple FIDO devices detected, identify hidraw path with this:
-sudo systemd-cryptenroll --fido2-device=list
-
-# Then re-run
-sudo systemd-cryptenroll --fido2-device=<hidraw path> --fido2-with-client-pin=no <luks device>
-
-# Full dump
-sudo cryptsetup luksDump <luks device>
-```
-
-If any slots need to be wiped, use the following:
-
-```sh
-# Identify slot
-sudo systemd-cryptenroll <luks device>
-
-# Wipe slot
-sudo systemd-cryptenroll --wipe-slot=<slog> <luks device>
-```
+For any devices with luks devices that the key should unlock, refer to [this documentation](/drive/README.md#luks-setup).
 
 ## set up gpg
 
