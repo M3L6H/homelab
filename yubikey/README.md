@@ -3,20 +3,22 @@
 Setup instructions for YubiKey.
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
-
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-
 **Table of Contents**
 
 - [initial setup](#initial-setup)
   - [check status](#check-status)
   - [change openpgp pins](#change-openpgp-pins)
-  - [require user presence for openpgp operations](#require-user-presence-for-openpgp-operations)
   - [change fido pin](#change-fido-pin)
-- [import gpg keys from offline luks usb](#import-gpg-keys-from-offline-luks-usb)
-  - [Rotate subkeys](#rotate-subkeys)
-  - [Import keys](#import-keys)
-  - [Clean up](#clean-up)
+- [register key with luks](#register-key-with-luks)
+- [set up gpg](#set-up-gpg)
+  - [set up usb](#set-up-usb)
+  - [rotate subkeys](#rotate-subkeys)
+  - [import keys](#import-keys)
+  - [clean up](#clean-up)
+  - [update keys](#update-keys)
+- [yubikey info](#yubikey-info)
+- [check/update inventory](#checkupdate-inventory)
 - [ssh key setup](#ssh-key-setup)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -185,7 +187,7 @@ ssb   cv25519/4567890ABCDEF123 2025-12-21 [E] [expires: 2027-12-21]
 ssb   ed25519/567890ABCDEF1234 2025-12-21 [A] [expires: 2027-12-21]
 ```
 
-### Rotate subkeys
+### rotate subkeys
 
 Edit the key
 
@@ -214,7 +216,7 @@ sudo mkdir "$DIR" &&
 	sudo mv pub.asc "${DIR}/"
 ```
 
-### Import keys
+### import keys
 
 ```sh
 gpg --edit-key <keyid>
@@ -226,7 +228,7 @@ Repeat for encryption and authentication keys.
 
 Use `save` to exit.
 
-### Clean up
+### clean up
 
 Run the following to clean up the temporary gpg session:
 
@@ -256,7 +258,7 @@ Re-enable internet:
 nmcli dev connect <device>
 ```
 
-### Update keys
+### update keys
 
 Ensure that above steps are performed for only one key at a time.
 
@@ -298,6 +300,28 @@ ssh -i "~/.ssh/id_gpg_<year>.pub" '<user>@<host>'
 ```
 
 While in the box, remove the old key on the server from `~/.ssh/authorized_keys`.
+
+## yubikey info
+
+Use the following to list fido2 credentials:
+
+```sh
+ykman fido credentials list
+```
+
+Check fido2 config & pin retries:
+
+```sh
+ykman fido info
+```
+
+## check/update inventory
+
+Use the following to check/update the YubiKey inventory:
+
+```sh
+sops yubikey/inventory.yml
+```
 
 ## ssh key setup
 

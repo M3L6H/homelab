@@ -1,0 +1,7 @@
+keys:
+  - &gpg 0x5FDB05DA213CC2272006F5513A2ED28CE6DE10FD
+creation_rules:
+  - path_regex: yubikey/inventory\.(yaml|yml|json)$
+    key_groups:
+      - pgp:
+          - *gpg

@@ -27,6 +27,7 @@
               libfido2
               rpi-imager
               openssl
+              sops
               yubikey-manager
             ];
 
