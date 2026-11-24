@@ -14,7 +14,7 @@ Ansible files for the homelab.
 ## check inventory
 
 ```sh
-ansible -i lab/inventory.ini harpocrates -m ping
+ansible -i lab/inventory.ini shinobu -m ping
 ```
 
 ## run playbooks

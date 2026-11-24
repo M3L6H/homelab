@@ -262,29 +262,4 @@ If the Pi boots but fails to connect to wifi, ensure that [ethernet was set up](
 
 ## ssh-keys
 
-To set up ssh keys on a Yubikey, do the following:
-
-```sh
-# Check PIN status
-ykman fido info
-
-# Generate ssh key
-ssh-keygen -t ed25519-sk \
-	-O resident \
-	-O verify-required \ # Optional: Requires PIN
--O application=ssh:m3l6h@ \
-	-C "Primary@YubiKey $(date +%Y-%m)" <hostname >.local
-```
-
-To store the keys on a luks-encrypted drive, first insert the drive, then:
-
-```sh
-sudo cryptsetup luksOpen /dev/sdxx usb
-sudo mount /dev/mapper/usb /mnt/usb
-
-cp ~/.ssh/ /mnt/usb <key-name >.pub
-cp ~/.ssh/ <key-name >/mnt/usb
-
-sudo umount /mnt/usb
-sudo cryptsetup luksClose usb
-```
+Find ssh key setup instructions for YubiKeys [here](./yubikey/README.md).

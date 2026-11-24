@@ -23,8 +23,10 @@
           mkShell {
             packages = [
               ansible
-              openssl
+              fido2luks
+              libfido2
               rpi-imager
+              openssl
               yubikey-manager
             ];
 
