@@ -232,13 +232,19 @@ nmcli dev connect <device>
 
 ### update keys
 
-Ensure that above steps are performed for only one key at a time.
-
 Use the following to update gpg keys on `keys.openpgp.org`:
 
 ```sh
 gpg --send-keys '<key fingerprint>'
 ```
+
+To update local keys based on the public key url stored in the Yubikey, use the following.
+
+```sh
+gpg --card-edit
+```
+
+While inside, use `fetch` and then `quit`.
 
 To update on GitHub, delete the existing key and add the updated key retrieved using the following:
 
@@ -254,24 +260,24 @@ Then use this to generate/update the public ssh key:
 
 ```sh
 YEAR="$(date +%Y)" # Update if using custom identifier
-ssh-add -L >"~/.ssh/id_gpg_${YEAR}.pub"
-chmod 600 "~/.ssh/id_gpg_${YEAR}.pub"
-ln "~/.ssh/id_gpg_${YEAR}.pub" ~/.ssh/id_gpg.pub
+ssh-add -L >"${HOME}/.ssh/id_gpg_${YEAR}.pub"
+chmod 600 "${HOME}/.ssh/id_gpg_${YEAR}.pub"
+ln "${HOME}/.ssh/id_gpg_${YEAR}.pub" "${HOME}/.ssh/id_gpg.pub"
 ```
 
 Now for each server, do:
 
 ```sh
-ssh-copy-id -f -i "~/.ssh/id_gpg_<year>.pub" -o "IdentityFile ~/.ssh/<old id file>" '<user>@<host>'
+ssh-copy-id -f -i "${HOME}/.ssh/id_gpg_<year>.pub" -o "IdentityFile ${HOME}/.ssh/<old id file>" '<user>@<host>'
 ```
 
 Verify with
 
 ```sh
-ssh -i "~/.ssh/id_gpg_<year>.pub" '<user>@<host>'
+ssh -i "${HOME}/.ssh/id_gpg_<year>.pub" '<user>@<host>'
 ```
 
-While in the box, remove the old key on the server from `~/.ssh/authorized_keys`.
+While in the box, remove the old key on the server from `${HOME}/.ssh/authorized_keys`.
 
 ## yubikey info
 
